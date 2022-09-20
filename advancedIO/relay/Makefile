@@ -1,4 +1,4 @@
-all:relay
+all:relay  # all 后面室执行文件
 CFLAGS += -Wall -g
 LDFLAGS += -lpthread -lstdc++ 
 
