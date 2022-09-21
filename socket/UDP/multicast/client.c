@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <netinet/ip.h>
 #include <netinet/in.h>
+#include <net/if.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <math.h>
@@ -19,6 +20,7 @@ int main()
     int sfd;
     struct msg_st *sbuf;
     struct sockaddr_in raddr; // remote addr
+    struct ip_mreqn mreqn;
 
     sfd = socket(AF_INET, SOCK_DGRAM, 0 /*IPPROTO_UDP*/);
     if (sfd < 0)
@@ -26,9 +28,12 @@ int main()
         perror("socket()");
         exit(1);
     }
+    //地址处理(初始化，由协议和类型决定)
+    inet_pton(AF_INET, "0.0.0.0", &mreqn.imr_address);
+    inet_pton(AF_INET, MULTICASTADDR, &mreqn.imr_multiaddr);
+    mreqn.imr_ifindex = if_nametoindex("ens33");
     //设置socket的属性
-    int val = 1;
-    if (setsockopt(sfd, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) < 0)
+    if (setsockopt(sfd, IPPROTO_IP, IP_MULTICAST_IF, &mreqn, sizeof(mreqn)) < 0)
     {
         perror("setsockopt()");
         exit(1);
@@ -49,19 +54,15 @@ int main()
 
     raddr.sin_family = AF_INET;
     raddr.sin_port = htons(atoi(SERVERPORT));
-    inet_pton(AF_INET, "192.168.47.255", &raddr.sin_addr);
+    inet_pton(AF_INET, MULTICASTADDR, &raddr.sin_addr);
 
-    while (1)
+    if (sendto(sfd, sbuf, pkglen, 0, (void *)&raddr, sizeof(raddr)) < 0)
     {
-        if (sendto(sfd, sbuf, pkglen, 0, (void *)&raddr, sizeof(raddr)) < 0)
-        {
-            perror("sendto()");
-            exit(1);
-        }
-
-        puts("OK");
-        sleep(1);
+        perror("sendto()");
+        exit(1);
     }
+
+    puts("OK");
 
     close(sfd);
 

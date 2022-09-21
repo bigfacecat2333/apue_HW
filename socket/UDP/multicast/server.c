@@ -1,10 +1,10 @@
-#include <asm-generic/socket.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/ip.h>
 #include <netinet/in.h>
+#include <net/if.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -34,7 +34,6 @@ int main()
     char ip[IPSIZE];
 
     int pkglen = sizeof(struct msg_st) + NAMEMAX;
-    debug("%d\n", pkglen);
     rbuf = malloc(pkglen);
     if (rbuf == NULL)
     {
@@ -50,8 +49,12 @@ int main()
     }
 
     //设置socket属性
-    int val = 1;
-    if (setsockopt(sfd, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) < 0)
+    struct ip_mreqn mreqn;
+    inet_pton(AF_INET, "0.0.0.0", &mreqn.imr_address);
+    // 224.0.0.1 这个地址表示所有支持多播的节点默认都存在于这个组中且无法离开,就相当于广播
+    inet_pton(AF_INET, MULTICASTADDR, &mreqn.imr_multiaddr);
+    mreqn.imr_ifindex = if_nametoindex("ens33");
+    if (setsockopt(sfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreqn, sizeof(mreqn)) < 0)
     {
         perror("setsockopt()");
         exit(1);
